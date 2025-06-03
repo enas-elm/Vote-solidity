@@ -131,7 +131,7 @@ import { ref, computed, onMounted } from 'vue';
 import { BrowserProvider, Contract } from 'ethers';
 import ElectionABI from '@/abis/Election.json';
 
-const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+const contractAddress = '0xBab9303C031C744F76Ac7F2BafCd8A298Abee9dd';
 
 const provider = ref(null);
 const signer = ref(null);
@@ -147,7 +147,7 @@ const votedCandidateAddress = ref('');
 const votedCandidateName = ref('');
 
 const candidates = ref([]);
-const candidateLimitReached = computed(() => candidates.value.length >= 2);
+const candidateLimitReached = computed(() => candidates.value.length >= 5);
 
 async function connectWallet() {
     if (!window.ethereum) return alert("Veuillez installer MetaMask");

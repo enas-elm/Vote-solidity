@@ -48,7 +48,7 @@ import { ref, onMounted } from 'vue'
 import { BrowserProvider, Contract } from 'ethers'
 import ElectionABI from '@/abis/Election.json'
 
-const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
+const contractAddress = '0xBab9303C031C744F76Ac7F2BafCd8A298Abee9dd'
 const candidates = ref([])
 const contract = ref(null)
 

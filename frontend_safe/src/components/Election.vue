@@ -41,7 +41,7 @@ import { ref, computed, onMounted } from 'vue';
 import { BrowserProvider, Contract } from 'ethers';
 import ElectionABI from '@/abis/Election.json';
 
-const contractAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0';
+const contractAddress = '0x5cDFF00942C363A1cC79E53475d6D3E3E9435f6A';
 
 const provider = ref(null);
 const signer = ref(null);
