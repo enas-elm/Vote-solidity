@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 contract Safe {
     address public owner;
+    uint public constant MAX_CANDIDATES = 2;
 
     struct Candidate {
         string name;
@@ -25,10 +26,13 @@ contract Safe {
         owner = msg.sender;
     }
 
-    // --- DEVENIR CANDIDAT ---
     function registerAsCandidate(string memory _name) public {
         require(bytes(_name).length > 0, "Nom requis");
         require(candidates[msg.sender].addr == address(0), "Deja candidat");
+        require(
+            candidateList.length < MAX_CANDIDATES,
+            "Limite de candidats atteinte"
+        );
 
         candidates[msg.sender] = Candidate({
             name: _name,
@@ -39,7 +43,6 @@ contract Safe {
         candidateList.push(msg.sender);
     }
 
-    // --- VOTER POUR UN CANDIDAT ---
     function vote(address _candidateAddr) public {
         require(!voters[msg.sender].hasVoted, "Deja vote");
         require(
@@ -55,8 +58,6 @@ contract Safe {
         candidates[_candidateAddr].voteCount += 1;
         voterList.push(msg.sender);
     }
-
-    // --- CONSULTATION PUBLIQUE ---
 
     function getCandidates() public view returns (Candidate[] memory) {
         Candidate[] memory result = new Candidate[](candidateList.length);

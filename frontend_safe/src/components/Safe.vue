@@ -10,8 +10,13 @@
     </div>
 
     <div v-else-if="account">
-      <input v-model="newCandidateName" placeholder="Votre nom de candidat" />
-      <button @click="registerAsCandidate">Devenir candidat</button>
+      <div v-if="candidateLimitReached" style="color: red;">
+        ❌ Le nombre maximum de candidats (2) est atteint.
+      </div>
+      <div v-else>
+        <input v-model="newCandidateName" placeholder="Votre nom de candidat" />
+        <button @click="registerAsCandidate">Devenir candidat</button>
+      </div>
     </div>
 
     <div v-if="hasAlreadyVoted" style="color: blue;">
@@ -21,14 +26,9 @@
     <h2>Liste des candidats</h2>
     <ul>
       <li v-for="(c, i) in candidates" :key="i">
-        <strong>{{ c.name }}</strong> — {{ c.voteCount }} vote(s)
-        <br />
-        <span style="font-size: 0.8em; color: gray;">{{ c.addr }}</span>
-        <br />
-        <button
-          v-if="account && !hasAlreadyVoted"
-          @click="vote(c.addr)"
-        >
+        <strong>{{ c.name }}</strong> — {{ c.voteCount }} vote(s)<br />
+        <span style="font-size: 0.8em; color: gray;">{{ c.addr }}</span><br />
+        <button v-if="account && !hasAlreadyVoted" @click="vote(c.addr)">
           Voter pour {{ c.name }}
         </button>
         <hr />
@@ -38,11 +38,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { BrowserProvider, Contract } from 'ethers';
 import SafeABI from '@/abis/Safe.json';
 
-const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // ✅ Mets ici l'adresse déployée
 
 const provider = ref(null);
 const signer = ref(null);
@@ -58,6 +58,7 @@ const votedCandidateAddress = ref('');
 const votedCandidateName = ref('');
 
 const candidates = ref([]);
+const candidateLimitReached = computed(() => candidates.value.length >= 2);
 
 async function connectWallet() {
   if (!window.ethereum) {
@@ -108,6 +109,7 @@ async function registerAsCandidate() {
     await fetchCandidates();
   } catch (e) {
     console.error('Erreur inscription candidat', e);
+    alert(e?.error?.message || "Erreur");
   }
 }
 
@@ -157,11 +159,9 @@ async function checkVoteStatus() {
 }
 
 onMounted(async () => {
-  // Charger les candidats même sans MetaMask connecté
   const _provider = new BrowserProvider(window.ethereum);
   const _contract = new Contract(contractAddress, SafeABI.abi, await _provider.getSigner());
   contract.value = _contract;
-
   await fetchCandidates();
 });
 </script>
