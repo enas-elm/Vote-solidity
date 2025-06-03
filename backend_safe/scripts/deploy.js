@@ -2,14 +2,14 @@ const hre = require("hardhat");
 
 async function main() {
 
-  const Safe = await hre.ethers.getContractFactory("Safe");
-  const safeInstance = await Safe.deploy();
+  const Election = await hre.ethers.getContractFactory("Election");
+  const electionInstance = await Election.deploy();
 
-  await safeInstance.waitForDeployment();
+  await electionInstance.waitForDeployment();
   const [owner] = await hre.ethers.getSigners();
   console.log("Deploying contract with address:", owner.address);
 
-  const contractAddress = await safeInstance.getAddress();
+  const contractAddress = await electionInstance.getAddress();
   console.log(`✅ Contract deployed at: ${contractAddress}`);
 }
 

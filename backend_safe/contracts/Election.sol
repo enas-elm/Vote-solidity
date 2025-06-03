@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract Safe {
+contract Election {
     address public owner;
     uint public constant MAX_CANDIDATES = 2;
 
