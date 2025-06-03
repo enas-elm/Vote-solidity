@@ -1,21 +1,37 @@
 <template>
   <div>
-    <h1>Inscription au vote 🗳️</h1>
+    <h1>Élection 🗳️</h1>
 
     <button @click="connectWallet">Connecter Metamask</button>
     <div v-if="account">Connecté : {{ account }}</div>
 
-    <div v-if="isRegistered" style="color: green;">
-      ✅ Vous êtes déjà inscrit sous le nom : {{ nameFromContract }}
+    <div v-if="isCandidate" style="color: green;">
+      ✅ Vous êtes candidat sous le nom : {{ myCandidateName }}
     </div>
 
-    <input v-model="name" placeholder="Votre nom" :disabled="isRegistered" />
-    <button @click="register" :disabled="!contract || isRegistered">S'inscrire</button>
+    <div v-else-if="account">
+      <input v-model="newCandidateName" placeholder="Votre nom de candidat" />
+      <button @click="registerAsCandidate">Devenir candidat</button>
+    </div>
 
-    <h2>Liste des inscrits</h2>
+    <div v-if="hasAlreadyVoted" style="color: blue;">
+      🗳️ Vous avez déjà voté pour : {{ votedCandidateName }}
+    </div>
+
+    <h2>Liste des candidats</h2>
     <ul>
-      <li v-for="(voter, index) in registeredVoters" :key="index">
-        {{ voter.name }} ({{ voter.address }})
+      <li v-for="(c, i) in candidates" :key="i">
+        <strong>{{ c.name }}</strong> — {{ c.voteCount }} vote(s)
+        <br />
+        <span style="font-size: 0.8em; color: gray;">{{ c.addr }}</span>
+        <br />
+        <button
+          v-if="account && !hasAlreadyVoted"
+          @click="vote(c.addr)"
+        >
+          Voter pour {{ c.name }}
+        </button>
+        <hr />
       </li>
     </ul>
   </div>
@@ -26,16 +42,22 @@ import { ref, onMounted } from 'vue';
 import { BrowserProvider, Contract } from 'ethers';
 import SafeABI from '@/abis/Safe.json';
 
-const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
 
 const provider = ref(null);
 const signer = ref(null);
 const contract = ref(null);
 const account = ref('');
-const name = ref('');
-const nameFromContract = ref('');
-const isRegistered = ref(false);
-const registeredVoters = ref([]);
+
+const newCandidateName = ref('');
+const isCandidate = ref(false);
+const myCandidateName = ref('');
+
+const hasAlreadyVoted = ref(false);
+const votedCandidateAddress = ref('');
+const votedCandidateName = ref('');
+
+const candidates = ref([]);
 
 async function connectWallet() {
   if (!window.ethereum) {
@@ -55,61 +77,91 @@ async function connectWallet() {
 
   account.value = await _signer.getAddress();
 
-  await checkIfRegistered();
-  await fetchVoters();
+  await checkCandidateStatus();
+  await checkVoteStatus();
 }
 
-async function checkIfRegistered() {
+async function fetchCandidates() {
   try {
-    const [voterName, registered] = await contract.value.getVoter(account.value);
-    isRegistered.value = registered;
-    nameFromContract.value = voterName;
-  } catch (e) {
-    console.error("Erreur lors de la vérification :", e);
-  }
-}
-
-async function register() {
-  if (!contract.value || !account.value) {
-    alert("Connecte ton wallet d'abord !");
-    return;
-  }
-
-  if (isRegistered.value) {
-    alert("Vous êtes déjà inscrit.");
-    return;
-  }
-
-  try {
-    const tx = await contract.value.register(name.value);
-    await tx.wait();
-    alert("Inscription réussie !");
-    await checkIfRegistered();
-    await fetchVoters();
-  } catch (error) {
-    console.error("Erreur d'inscription :", error);
-  }
-}
-
-async function fetchVoters() {
-  try {
-    // temp signer readonly si aucun n'est connecté
-    const tempProvider = new BrowserProvider(window.ethereum);
-    const readOnlyContract = new Contract(contractAddress, SafeABI.abi, await tempProvider.getSigner());
-
-    const addresses = await readOnlyContract.getVoters();
-    const details = await Promise.all(addresses.map(async (addr) => {
-      const [voterName, isRegistered] = await readOnlyContract.getVoter(addr);
-      return { name: voterName, address: addr };
+    const all = await contract.value.getCandidates();
+    candidates.value = all.map((c) => ({
+      name: c.name,
+      addr: c.addr,
+      voteCount: Number(c.voteCount),
     }));
-    registeredVoters.value = details;
-  } catch (error) {
-    console.error("Erreur lors de la récupération des votants :", error);
+  } catch (e) {
+    console.error('Erreur chargement candidats', e);
   }
 }
 
-// Appelle automatiquement fetchVoters au chargement
-onMounted(() => {
-  fetchVoters();
+async function registerAsCandidate() {
+  if (!newCandidateName.value) {
+    alert('Entrez un nom');
+    return;
+  }
+
+  try {
+    const tx = await contract.value.registerAsCandidate(newCandidateName.value);
+    await tx.wait();
+    alert("Inscription comme candidat réussie !");
+    await checkCandidateStatus();
+    await fetchCandidates();
+  } catch (e) {
+    console.error('Erreur inscription candidat', e);
+  }
+}
+
+async function vote(candidateAddress) {
+  try {
+    const tx = await contract.value.vote(candidateAddress);
+    await tx.wait();
+    alert("Vote enregistré !");
+    await checkVoteStatus();
+    await fetchCandidates();
+  } catch (e) {
+    console.error("Erreur lors du vote :", e);
+  }
+}
+
+async function checkCandidateStatus() {
+  if (!contract.value || !account.value) return;
+
+  try {
+    const [name, voteCount] = await contract.value.getCandidate(account.value);
+    if (name && name.length > 0) {
+      isCandidate.value = true;
+      myCandidateName.value = name;
+    } else {
+      isCandidate.value = false;
+    }
+  } catch (e) {
+    isCandidate.value = false;
+  }
+}
+
+async function checkVoteStatus() {
+  if (!contract.value || !account.value) return;
+
+  try {
+    const [hasVoted, votedAddr] = await contract.value.hasVoted(account.value);
+    hasAlreadyVoted.value = hasVoted;
+    votedCandidateAddress.value = votedAddr;
+
+    if (hasVoted) {
+      const [name] = await contract.value.getCandidate(votedAddr);
+      votedCandidateName.value = name;
+    }
+  } catch (e) {
+    console.error('Erreur lecture vote', e);
+  }
+}
+
+onMounted(async () => {
+  // Charger les candidats même sans MetaMask connecté
+  const _provider = new BrowserProvider(window.ethereum);
+  const _contract = new Contract(contractAddress, SafeABI.abi, await _provider.getSigner());
+  contract.value = _contract;
+
+  await fetchCandidates();
 });
 </script>

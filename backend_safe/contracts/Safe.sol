@@ -3,12 +3,20 @@ pragma solidity ^0.8.20;
 
 contract Safe {
     address public owner;
-    mapping(address => uint) public balanceAdd;
+
+    struct Candidate {
+        string name;
+        address addr;
+        uint voteCount;
+    }
 
     struct Voter {
-        string name;
-        bool isRegistered;
+        bool hasVoted;
+        address votedCandidate;
     }
+
+    mapping(address => Candidate) public candidates;
+    address[] public candidateList;
 
     mapping(address => Voter) public voters;
     address[] public voterList;
@@ -17,47 +25,64 @@ contract Safe {
         owner = msg.sender;
     }
 
-    // --- FONCTIONS FINANCIÈRES ---
+    // --- DEVENIR CANDIDAT ---
+    function registerAsCandidate(string memory _name) public {
+        require(bytes(_name).length > 0, "Nom requis");
+        require(candidates[msg.sender].addr == address(0), "Deja candidat");
 
-    function sendMoney() public payable {
-        require(msg.value >= 0.01 ether, "Minimum 0.01 ETH");
-        balanceAdd[msg.sender] += msg.value;
+        candidates[msg.sender] = Candidate({
+            name: _name,
+            addr: msg.sender,
+            voteCount: 0
+        });
+
+        candidateList.push(msg.sender);
     }
 
-    function seeBalance() public view returns (uint) {
-        return balanceAdd[msg.sender];
-    }
+    // --- VOTER POUR UN CANDIDAT ---
+    function vote(address _candidateAddr) public {
+        require(!voters[msg.sender].hasVoted, "Deja vote");
+        require(
+            candidates[_candidateAddr].addr != address(0),
+            "Candidat invalide"
+        );
 
-    function withdraw(uint amount) public {
-        require(msg.sender == owner, "Not the owner");
-        require(balanceAdd[msg.sender] >= amount, "Not enough eth");
+        voters[msg.sender] = Voter({
+            hasVoted: true,
+            votedCandidate: _candidateAddr
+        });
 
-        balanceAdd[msg.sender] -= amount;
-        payable(msg.sender).transfer(amount);
-    }
-
-    function viewBalance() public view returns (uint) {
-        return address(this).balance;
-    }
-
-    // --- FONCTIONS D'INSCRIPTION ---
-
-    function register(string memory _name) public {
-        require(!voters[msg.sender].isRegistered, "Already registered");
-
-        voters[msg.sender] = Voter({name: _name, isRegistered: true});
-
+        candidates[_candidateAddr].voteCount += 1;
         voterList.push(msg.sender);
     }
 
-    function getVoters() public view returns (address[] memory) {
-        return voterList;
+    // --- CONSULTATION PUBLIQUE ---
+
+    function getCandidates() public view returns (Candidate[] memory) {
+        Candidate[] memory result = new Candidate[](candidateList.length);
+        for (uint i = 0; i < candidateList.length; i++) {
+            result[i] = candidates[candidateList[i]];
+        }
+        return result;
     }
 
-    function getVoter(
+    function getCandidate(
         address _addr
-    ) public view returns (string memory name, bool registered) {
-        Voter memory voter = voters[_addr];
-        return (voter.name, voter.isRegistered);
+    ) public view returns (string memory name, uint voteCount) {
+        Candidate memory c = candidates[_addr];
+        return (c.name, c.voteCount);
+    }
+
+    function hasVoted(address _addr) public view returns (bool, address) {
+        Voter memory v = voters[_addr];
+        return (v.hasVoted, v.votedCandidate);
+    }
+
+    function getCandidateCount() public view returns (uint) {
+        return candidateList.length;
+    }
+
+    function getVoterCount() public view returns (uint) {
+        return voterList.length;
     }
 }
