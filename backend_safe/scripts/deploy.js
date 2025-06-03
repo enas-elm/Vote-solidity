@@ -1,19 +1,20 @@
 const hre = require("hardhat");
 
 async function main() {
-
   const Election = await hre.ethers.getContractFactory("Election");
-  const electionInstance = await Election.deploy();
+  const election = await Election.deploy();
+  await election.waitForDeployment();
 
-  await electionInstance.waitForDeployment();
-  const [owner] = await hre.ethers.getSigners();
-  console.log("Deploying contract with address:", owner.address);
+  const address = await election.getAddress();
+  console.log("✅ Contract deployed at:", address);
 
-  const contractAddress = await electionInstance.getAddress();
-  console.log(`✅ Contract deployed at: ${contractAddress}`);
+  const candidates = ["Alice", "Bob"];
+  const tx = await election.initializeCandidates(candidates);
+  await tx.wait();
+  console.log("✅ Initial candidates set:", candidates);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });

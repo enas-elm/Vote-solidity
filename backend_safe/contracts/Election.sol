@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 contract Election {
     address public owner;
-    uint public constant MAX_CANDIDATES = 2;
+    uint public constant MAX_CANDIDATES = 5;
 
     struct Candidate {
         string name;
@@ -26,13 +26,11 @@ contract Election {
         owner = msg.sender;
     }
 
+    // Inscription manuelle
     function registerAsCandidate(string memory _name) public {
-        require(bytes(_name).length > 0, "Nom requis");
-        require(candidates[msg.sender].addr == address(0), "Deja candidat");
-        require(
-            candidateList.length < MAX_CANDIDATES,
-            "Limite de candidats atteinte"
-        );
+        require(bytes(_name).length > 0, "Name required");
+        require(candidates[msg.sender].addr == address(0), "Already a candidate");
+        require(candidateList.length < MAX_CANDIDATES, "Max candidates reached");
 
         candidates[msg.sender] = Candidate({
             name: _name,
@@ -43,12 +41,26 @@ contract Election {
         candidateList.push(msg.sender);
     }
 
+    // Initialisation via script
+    function initializeCandidates(string[] memory names) public {
+        require(msg.sender == owner, "Only owner");
+        require(candidateList.length == 0, "Already initialized");
+        require(names.length <= MAX_CANDIDATES, "Too many initial candidates");
+
+        for (uint i = 0; i < names.length; i++) {
+            address fakeAddr = address(uint160(uint(keccak256(abi.encodePacked(names[i], block.timestamp, i)))));
+            candidates[fakeAddr] = Candidate({
+                name: names[i],
+                addr: fakeAddr,
+                voteCount: 0
+            });
+            candidateList.push(fakeAddr);
+        }
+    }
+
     function vote(address _candidateAddr) public {
-        require(!voters[msg.sender].hasVoted, "Deja vote");
-        require(
-            candidates[_candidateAddr].addr != address(0),
-            "Candidat invalide"
-        );
+        require(!voters[msg.sender].hasVoted, "Already voted");
+        require(candidates[_candidateAddr].addr != address(0), "Invalid candidate");
 
         voters[msg.sender] = Voter({
             hasVoted: true,
@@ -67,9 +79,7 @@ contract Election {
         return result;
     }
 
-    function getCandidate(
-        address _addr
-    ) public view returns (string memory name, uint voteCount) {
+    function getCandidate(address _addr) public view returns (string memory name, uint voteCount) {
         Candidate memory c = candidates[_addr];
         return (c.name, c.voteCount);
     }
