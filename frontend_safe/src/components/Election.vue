@@ -1,48 +1,47 @@
 <template>
-  <div>
-    <h1>Élection 🗳️</h1>
+  <v-container>
+    <v-card class="pa-5">
+      <v-card-title>Élection 🗳️</v-card-title>
+      <v-card-subtitle v-if="account">Connecté : {{ account }}</v-card-subtitle>
 
-    <button @click="connectWallet">Connecter Metamask</button>
-    <div v-if="account">Connecté : {{ account }}</div>
+      <v-btn @click="connectWallet" color="primary">Connecter Metamask</v-btn>
 
-    <div v-if="isCandidate" style="color: green;">
-      ✅ Vous êtes candidat sous le nom : {{ myCandidateName }}
-    </div>
+      <v-divider class="my-4" />
 
-    <div v-else-if="account">
-      <div v-if="candidateLimitReached" style="color: red;">
+      <v-alert v-if="isCandidate" type="success">✅ Candidat : {{ myCandidateName }}</v-alert>
+
+      <v-alert v-else-if="candidateLimitReached" type="error">
         ❌ Le nombre maximum de candidats (2) est atteint.
-      </div>
-      <div v-else>
-        <input v-model="newCandidateName" placeholder="Votre nom de candidat" />
-        <button @click="registerAsCandidate">Devenir candidat</button>
-      </div>
-    </div>
+      </v-alert>
 
-    <div v-if="hasAlreadyVoted" style="color: blue;">
-      🗳️ Vous avez déjà voté pour : {{ votedCandidateName }}
-    </div>
+      <v-text-field v-model="newCandidateName" label="Nom de candidat" />
+      <v-btn @click="registerAsCandidate" color="secondary">Devenir candidat</v-btn>
 
-    <h2>Liste des candidats</h2>
-    <ul>
-      <li v-for="(c, i) in candidates" :key="i">
-        <strong>{{ c.name }}</strong> — {{ c.voteCount }} vote(s)<br />
-        <span style="font-size: 0.8em; color: gray;">{{ c.addr }}</span><br />
-        <button v-if="account && !hasAlreadyVoted" @click="vote(c.addr)">
-          Voter pour {{ c.name }}
-        </button>
-        <hr />
-      </li>
-    </ul>
-  </div>
+      <v-divider class="my-4" />
+
+      <h2>Liste des candidats</h2>
+      <v-list>
+        <v-list-item v-for="(c, i) in candidates" :key="i">
+          <v-list-item-content>
+            <v-list-item-title>{{ c.name }} — {{ c.voteCount }} vote(s)</v-list-item-title>
+            <v-list-item-subtitle>{{ c.addr }}</v-list-item-subtitle>
+          </v-list-item-content>
+          <v-btn v-if="account && !hasAlreadyVoted" @click="vote(c.addr)" color="green">
+            Voter
+          </v-btn>
+        </v-list-item>
+      </v-list>
+    </v-card>
+  </v-container>
 </template>
+
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { BrowserProvider, Contract } from 'ethers';
-import SafeABI from '@/abis/Safe.json';
+import ElectionABI from '@/abis/Election.json';
 
-const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // ✅ Mets ici l'adresse déployée
+const contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
 
 const provider = ref(null);
 const signer = ref(null);
@@ -70,7 +69,7 @@ async function connectWallet() {
 
   const _provider = new BrowserProvider(window.ethereum);
   const _signer = await _provider.getSigner();
-  const _contract = new Contract(contractAddress, SafeABI.abi, _signer);
+  const _contract = new Contract(contractAddress, ElectionABI.abi, _signer);
 
   provider.value = _provider;
   signer.value = _signer;
@@ -160,7 +159,7 @@ async function checkVoteStatus() {
 
 onMounted(async () => {
   const _provider = new BrowserProvider(window.ethereum);
-  const _contract = new Contract(contractAddress, SafeABI.abi, await _provider.getSigner());
+  const _contract = new Contract(contractAddress, ElectionABI.abi, await _provider.getSigner());
   contract.value = _contract;
   await fetchCandidates();
 });
